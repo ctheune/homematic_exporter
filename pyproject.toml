@@ -1,0 +1,16 @@
+[project]
+name = "prometheus-exporter"
+version = "0.1.0"
+description = "Prometheus exporter for Homematic CCU3"
+
+# define any Python dependencies
+dependencies = [
+  "requests",
+  "pylint",
+  "prometheus-client"
+]
+
+# define the CLI executable
+# Here, we define the entry point to be the 'main()' function in the module 'app/main.py'
+[project.scripts]
+cli = "app.main:main"
