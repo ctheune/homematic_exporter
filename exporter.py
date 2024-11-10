@@ -13,6 +13,9 @@ import time
 import json
 import sys
 
+import socket
+socket.setdefaulttimeout(10)
+
 class HomematicMetricsProcessor(threading.Thread):
 
   METRICS_NAMESPACE = 'homematic'
@@ -27,7 +30,7 @@ class HomematicMetricsProcessor(threading.Thread):
   ccu_host = ''
   ccu_port = ''
   ccu_url = ''
-  gathering_interval = 60
+  gathering_interval = 5
   mappedNames = {}
   supported_device_types = DEFAULT_SUPPORTED_TYPES
 
@@ -49,7 +52,7 @@ class HomematicMetricsProcessor(threading.Thread):
         logging.info("Failed to generate metrics: {0}".format(osError))
         error_counter.labels(self.ccu_host).inc()
       except:
-        logging.info("Failed to generate metrics: {0}".format(sys.exc_info()[0]))
+        logging.exception("Failed to generate metrics: {0}".format(sys.exc_info()[0]))
         error_counter.labels(self.ccu_host).inc()
       finally:
         time.sleep(self.gathering_interval)
@@ -66,7 +69,7 @@ class HomematicMetricsProcessor(threading.Thread):
 
     self.ccu_host = ccu_host
     self.ccu_port = ccu_port
-    self.ccu_url = "http://{}:{}".format(args.ccu_host, args.ccu_port)
+    self.ccu_url = "http://Admin:tQ;(47QrUMGdknVH@{}:{}".format(args.ccu_host, args.ccu_port)
     self.gathering_interval = int(gathering_interval)
     self.devicecount = Gauge('devicecount', 'Number of processed/supported devices', labelnames=['ccu'], namespace=self.METRICS_NAMESPACE)
 
@@ -81,7 +84,7 @@ class HomematicMetricsProcessor(threading.Thread):
         devAddress = device.get('ADDRESS')
         if devParentAddress == '' and devType in self.supported_device_types:
           devChildcount = len(device.get('CHILDREN'))
-          logging.info("Found top-level device {} of type {} with {} children ".format(devAddress, devType, devChildcount))
+          logging.info("Found top-level device {} of type {} with {} children ".format(self.mappedNames.get(devAddress, devAddress), devType, devChildcount))
           logging.debug(pformat(device))
 
         if devParentType in self.supported_device_types:
@@ -91,11 +94,10 @@ class HomematicMetricsProcessor(threading.Thread):
           if 'VALUES' in device.get('PARAMSETS'):
             paramsetDescription = self.fetchParamSetDescription(devAddress)
             paramset = self.fetchParamSet(devAddress)
-
             for key in paramsetDescription:
               paramDesc = paramsetDescription.get(key)
               paramType = paramDesc.get('TYPE')
-              if paramType in ['FLOAT', 'INTEGER', 'BOOL']:
+              if paramType in ['FLOAT', 'INTEGER', 'BOOL', 'ENUM']:
                 self.processSingleValue(devAddress, devType, devParentAddress, devParentType, paramType, key, paramset.get(key))
 
             if len(paramset)>0:
@@ -111,12 +113,15 @@ class HomematicMetricsProcessor(threading.Thread):
     return xmlrpc.client.ServerProxy(self.ccu_url, transport=transport)
 
   def fetchDevicesList(self):
+    seen_types = set()
     with self.createProxy() as proxy:
       result = []
       for entry in proxy.listDevices():
+        seen_types.add(entry.get('TYPE'))
         if entry.get('TYPE') in self.supported_device_types or entry.get('PARENT_TYPE') in self.supported_device_types:
           result.append(entry)
       self.devicecount.labels(self.ccu_host).set(len(result))
+      logging.debug("Unknown types: %s" %( seen_types - set(self.supported_device_types)))
       return result
 
   def fetchParamSetDescription(self, address):
@@ -128,7 +133,7 @@ class HomematicMetricsProcessor(threading.Thread):
       return proxy.getParamset(address, 'VALUES')
 
   def processSingleValue(self, deviceAddress, deviceType, parentDeviceAddress, parentDeviceType, paramType, key, value):
-    logging.debug("Found {} param {} with value {}".format(paramType, key, value))
+    logging.debug("Found {} param {} with value {!r}".format(paramType, key, value))
 
     if value != None:
       gaugename = key.lower()
@@ -177,6 +182,7 @@ if __name__ == '__main__':
     print(pformat(processor.fetchDevicesList()))
   elif args.dump_parameters:
     address = args.dump_parameters
+    print(pformat(processor.fetchParamSetDescription(address)))
     print(pformat(processor.fetchParamSet(address)))
   else:
     processor.start()
