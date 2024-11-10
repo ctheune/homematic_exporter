@@ -38,6 +38,7 @@ class HomematicMetricsProcessor(threading.Thread):
         "HmIP-FSM",
         "HmIP-MIOB",
         "HMIP-PS",
+        "HmIP-PS-2",
         "HMIP-PSM",
         "HmIP-RCV-1",
         "HmIP-STH",
