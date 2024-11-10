@@ -393,8 +393,8 @@ class EnvDefault(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, values)
 
-if __name__ == '__main__':
 
+def main()
     PARSER = argparse.ArgumentParser()
     PARSER.add_argument("--ccu_host", action=EnvDefault, envvar="CCU_HOST", help="The hostname of the ccu instance", required=True)
     PARSER.add_argument("--ccu_port", action=EnvDefault, envvar="CCU_PORT", help="The port for the xmlrpc service (2001 for BidcosRF, 2010 for HmIP)", default=2010)
